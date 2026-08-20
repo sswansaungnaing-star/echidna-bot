@@ -1,7 +1,11 @@
 import os
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
 from openai import OpenAI
 from telegram import Update
 from telegram.ext import Application, MessageHandler, ContextTypes, filters
+
 
 TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
 OPENROUTER_API_KEY = os.environ["OPENROUTER_API_KEY"]
@@ -10,6 +14,7 @@ client = OpenAI(
     api_key=OPENROUTER_API_KEY,
     base_url="https://openrouter.ai/api/v1"
 )
+
 
 ECHIDNA_PERSONALITY = """
 You are Echidna, the Witch of Greed from Re:Zero.
@@ -49,6 +54,7 @@ a detailed explanation.
 
 Treat different people as different individuals.
 """
+
 
 async def respond(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
@@ -103,10 +109,42 @@ Reply naturally as Echidna.
             await update.message.reply_text(reply)
 
     except Exception as e:
-        print("Error:", e)
+        print("AI Error:", e)
+
+
+class HealthHandler(BaseHTTPRequestHandler):
+
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Echidna is online!")
+
+    def log_message(self, format, *args):
+        return
+
+
+def start_web_server():
+
+    port = int(os.environ.get("PORT", 10000))
+
+    server = HTTPServer(
+        ("0.0.0.0", port),
+        HealthHandler
+    )
+
+    print(f"Web server running on port {port}")
+
+    server.serve_forever()
 
 
 def main():
+
+    web_thread = threading.Thread(
+        target=start_web_server,
+        daemon=True
+    )
+
+    web_thread.start()
 
     app = Application.builder().token(TELEGRAM_TOKEN).build()
 
