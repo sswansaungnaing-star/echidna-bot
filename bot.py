@@ -4,9 +4,12 @@ from telegram import Update
 from telegram.ext import Application, MessageHandler, ContextTypes, filters
 
 TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
-OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
+OPENROUTER_API_KEY = os.environ["OPENROUTER_API_KEY"]
 
-client = OpenAI(api_key=OPENAI_API_KEY)
+client = OpenAI(
+    api_key=OPENROUTER_API_KEY,
+    base_url="https://openrouter.ai/api/v1"
+)
 
 ECHIDNA_PERSONALITY = """
 You are Echidna, the Witch of Greed from Re:Zero.
@@ -53,7 +56,6 @@ async def respond(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     message = update.message.text
-
     bot_username = context.bot.username
 
     mentioned = (
@@ -81,13 +83,21 @@ Reply naturally as Echidna.
 """
 
     try:
-        response = client.responses.create(
-            model="gpt-5.5",
-            instructions=ECHIDNA_PERSONALITY,
-            input=prompt
+        response = client.chat.completions.create(
+            model="openrouter/free",
+            messages=[
+                {
+                    "role": "system",
+                    "content": ECHIDNA_PERSONALITY
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ]
         )
 
-        reply = response.output_text.strip()
+        reply = response.choices[0].message.content.strip()
 
         if reply:
             await update.message.reply_text(reply)
